@@ -1,0 +1,16 @@
+---
+
+#"docker swarm init"
+
+- name: Init docker swarm
+  shell: "docker swarm init"
+  when: false
+
+- name: Join docker swarm
+  shell: "docker swarm join --token {{ docker_swarm_token }}"
+  when: false
+# --advertise-addr
+
+# 2.24 - Rotate swarm manager auto-lock key periodically
+- name: Rotate swarm manager auto-lock key periodically
+  shell: "docker swarm unlock-key --rotate"

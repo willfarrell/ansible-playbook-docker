@@ -1,0 +1,260 @@
+---
+
+# 2.6 & 3.{7-14} TLS
+# https://docs.docker.com/engine/security/https/
+
+- name: Make cert dir
+  file:
+    path: "{{ docker_tls_dir }}"
+    state: directory
+
+# Make vars
+- name: Check passphrase file
+  stat:
+    path: "{{ docker_tls_dir }}/passphrase"
+  register: passphrase
+
+## CA
+- name: Check CA Key file
+  stat:
+    path: "{{ docker_tls_dir }}/ca-key.pem"
+  register: ca_key
+
+- name: Check CA Cert file
+  stat:
+    path: "{{ docker_tls_dir }}/ca.pem"
+  register: ca_cert
+
+## Server
+- name: Check Server Key file
+  stat:
+    path: "{{ docker_tls_dir }}/server-key.pem"
+  register: server_key
+
+- name: Check Server CSR file
+  stat:
+    path: "{{ docker_tls_dir }}/server.csr"
+  register: server_csr
+
+- name: Check Server extfile file
+  stat:
+    path: "{{ docker_tls_dir }}/server-extfile.cnf"
+  register: server_extfile
+
+- name: Check Server Cert file
+  stat:
+    path: "{{ docker_tls_dir }}/server-cert.pem"
+  register: server_cert
+
+## Client
+- name: Check Client Key file
+  stat:
+    path: "{{ docker_tls_dir }}/key.pem"
+  register: client_key
+
+- name: Check Client CSR file
+  stat:
+    path: "{{ docker_tls_dir }}/client.csr"
+  register: client_csr
+
+- name: Check Client extfile file
+  stat:
+    path: "{{ docker_tls_dir }}/client-extfile.cnf"
+  register: client_extfile
+
+- name: Check Client Cert file
+  stat:
+    path: "{{ docker_tls_dir }}/cert.pem"
+  register: client_cert
+
+
+# ansible hangs on command - async & wait
+- name: Create passphrase
+  shell: "cat /dev/urandom | tr -dc 'a-zA-Z0-9-_!@#$%^&*()_+{}|:<>?=' | fold -w 64 | head -n 1 > {{ docker_tls_dir }}/passphrase"
+  when:
+    - passphrase.stat.exists == false
+    - ca_key.stat.exists == false
+    - ca_cert.stat.exists == false
+    - server_cert.stat.exists == false
+    - client_cert.stat.exists == false
+  async: 5
+  poll: 0
+
+- wait_for:
+    path: "{{ docker_tls_dir }}/passphrase"
+  when:
+    - passphrase.stat.exists == false
+    - ca_key.stat.exists == false
+    - ca_cert.stat.exists == false
+    - server_cert.stat.exists == false
+    - client_cert.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/passphrase"
+  register: passphrase
+
+
+## CA
+- name: Create CA Key
+  shell: "openssl genrsa -aes256 -out {{ docker_tls_dir }}/ca-key.pem -passout file:{{ docker_tls_dir }}/passphrase 4096"
+  when:
+    - passphrase.stat.exists == true
+    - ca_key.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/ca-key.pem"
+  register: ca_key
+
+
+- name: Create CA Cert
+  shell: "echo -e \"\n\n\n\n\n{{ docker_tls_host }}\n\n\n\n\" | openssl req -new -x509 -passin file:{{ docker_tls_dir }}/passphrase -days 1095 -key {{ docker_tls_dir }}/ca-key.pem -sha512 -out {{ docker_tls_dir }}/ca.pem"
+  when:
+    - passphrase.stat.exists == true
+    - ca_key.stat.exists == true
+    - ca_cert.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/ca.pem"
+  register: ca_cert
+
+
+## Server
+- name: Create Server Key
+  shell: "openssl ecparam -genkey -name secp384r1 -out {{ docker_tls_dir }}/server-key.pem"
+  when:
+    - server_key.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/server-key.pem"
+  register: server_key
+
+
+- name: Create Server CSR
+  shell: "openssl req -subj '/CN={{ docker_tls_host }}' -sha512 -new -key {{ docker_tls_dir }}/server-key.pem -out {{ docker_tls_dir }}/server.csr"
+  when:
+    - server_key.stat.exists == true
+    - server_cert.stat.exists == false
+    - server_csr.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/server.csr"
+  register: server_csr
+
+
+- name: Create extfile.cnf
+  shell: "echo subjectAltName = DNS:{{ docker_tls_host }},IP:10.10.10.20,IP:127.0.0.1 > {{ docker_tls_dir }}/server-extfile.cnf"
+  when:
+    - server_cert.stat.exists == false
+    - server_extfile.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/server-extfile.cnf"
+  register: server_extfile
+
+
+- name: Create Server Cert
+  shell: "openssl x509 -req -passin file:{{ docker_tls_dir }}/passphrase -days 1095 -sha512 -in {{ docker_tls_dir }}/server.csr -CA {{ docker_tls_dir }}/ca.pem -CAkey {{ docker_tls_dir }}/ca-key.pem -CAcreateserial -out {{ docker_tls_dir }}/server-cert.pem -extfile {{ docker_tls_dir }}/server-extfile.cnf"
+  when:
+    - passphrase.stat.exists == true
+    - ca_cert.stat.exists == true
+    - ca_key.stat.exists == true
+    - server_csr.stat.exists == true
+    - server_extfile.stat.exists == true
+    - server_cert.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/server-cert.pem"
+  register: server_cert
+
+## Client
+- name: Create Client Key
+  shell: "openssl ecparam -genkey -name secp384r1 -out {{ docker_tls_dir }}/key.pem"
+  when:
+    - client_key.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/key.pem"
+  register: client_key
+
+
+- name: Create Client CSR
+  shell: "openssl req -subj '/CN=client' -new -key {{ docker_tls_dir }}/key.pem -out {{ docker_tls_dir }}/client.csr"
+  when:
+    - client_key.stat.exists == true
+    - client_cert.stat.exists == false
+    - client_csr.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/client.csr"
+  register: client_csr
+
+
+- name: Create extfile.cnf
+  shell: "echo extendedKeyUsage = clientAuth > {{ docker_tls_dir }}/client-extfile.cnf"
+  when:
+    - client_cert.stat.exists == false
+    - client_extfile.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/client-extfile.cnf"
+  register: client_extfile
+
+
+- name: Create Client Cert
+  shell: "openssl x509 -req -passin file:{{ docker_tls_dir }}/passphrase -days 1095 -sha512 -in {{ docker_tls_dir }}/client.csr -CA {{ docker_tls_dir }}/ca.pem -CAkey {{ docker_tls_dir }}/ca-key.pem -CAcreateserial -out {{ docker_tls_dir }}/cert.pem -extfile {{ docker_tls_dir }}/client-extfile.cnf"
+  when:
+    - passphrase.stat.exists == true
+    - client_csr.stat.exists == true
+    - ca_cert.stat.exists == true
+    - ca_key.stat.exists == true
+    - client_extfile.stat.exists == true
+    - client_cert.stat.exists == false
+
+- stat:
+    path: "{{ docker_tls_dir }}/cert.pem"
+  register: client_cert
+
+
+- name: Set file permissions (keys)
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: 0400
+  with_items:
+    - "{{ docker_tls_dir }}/ca-key.pem"
+    - "{{ docker_tls_dir }}/key.pem"
+    - "{{ docker_tls_dir }}/server-key.pem"
+
+- name: Set file permissions (certs)
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: 0444
+  with_items:
+    - "{{ docker_tls_dir }}/ca.pem"
+    - "{{ docker_tls_dir }}/cert.pem"
+    - "{{ docker_tls_dir }}/server-cert.pem"
+
+- name: Clean up - remove unused files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ docker_tls_dir }}/client.csr"
+    - "{{ docker_tls_dir }}/server.csr"
+    - "{{ docker_tls_dir }}/server-extfile.cnf"
+    - "{{ docker_tls_dir }}/client-extfile.cnf"
+    - "{{ docker_tls_dir }}/passphrase"
+
+
+# TODO setting host fails TLS
+#export DOCKER_HOST=tcp://$HOST:2376 DOCKER_TLS_VERIFY=1 DOCKER_CERT_PATH=/etc/docker/certs.d/
+#- name: Verify working
+#  shell: "docker --tlsverify --tlscacert={{ docker_tls_dir }}/ca.pem --tlscert={{ docker_tls_dir }}/cert.pem --tlskey={{ docker_tls_dir }}/key.pem -H={{ docker_tls_host }}:2376 version"
+#  register: docker_tls_test
+#
+#- debug: var=docker_tls_test
+
+# curl https://{{ docker_tls_host }}:2376/images/json --cert {{ docker_tls_dir }}/cert.pem --key {{ docker_tls_dir }}/key.pem --cacert {{ docker_tls_dir }}/ca.pem

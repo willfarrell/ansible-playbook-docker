@@ -5,9 +5,9 @@
 # 2017-03-21 etc/yum.repos.d/docker.repo from https://download.docker.com/linux/centos/docker-ce.repo
 
 - name: Install docker yum repo
-  copy:
+  template:
     owner: root
-    src: files/etc/yum.repos.d/docker.repo
+    src: etc/yum.repos.d/docker.repo.j2
     dest: /etc/yum.repos.d/docker.repo
 
 - name: Install docker

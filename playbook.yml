@@ -1,0 +1,18 @@
+---
+
+# ansible-playbook 2_servers.yml
+
+- hosts: webapp
+  become: yes
+  vars:
+    ssh_users:
+      - wfarrell
+    ssh_sudo_users:
+      - wfarrell
+  roles:
+    - update
+    - galaxy.cis
+  #  - galaxy.fail2ban
+    - sshd
+    - docker
+  #  - galaxy.firewall

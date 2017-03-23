@@ -1,10 +1,19 @@
 ---
 
 - include: volumes.yml
-  when: ansible_os_family == 'RedHat'
 
 - include: install.yml
   when: ansible_os_family == 'RedHat'
 
+- include: auth-plugin.yml
+
+- include: tls.yml
+
 - include: config.yml
-  when: ansible_os_family == 'RedHat'
+
+# TODO put when: configs change
+- name: Restart `docker`
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: yes

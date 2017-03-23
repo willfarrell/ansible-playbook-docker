@@ -1,33 +1,47 @@
 ---
 
+# /etc/default/docker
+# /lib/systemd/system/docker.service
+# /etc/systemd/system/docker.service.d/docker.conf
+# /etc/docker/daemon.json
+
+# TODO
+#nano /usr/lib/systemd/system/docker.service
+# Add `Restart=always` under [Service]
+
 # 4.5 environment
 - name: Copy docker environment
-  copy:
+  template:
     owner: root
-    src: files/etc/environment
+    src: etc/environment.j2
     dest: /etc/environment
 
 # 1.{5-13} Audit Rules
 - name: Copy docker audit rules
-  copy:
+  template:
     owner: root
-    src: files/etc/audit/rules.d/docker.rules
+    src: etc/audit/rules.d/docker.rules.j2
     dest: /etc/audit/rules.d/docker.rules
 
+# TODO fix
 - name: Restart `auditd`
   systemd:
     name: auditd
     state: restarted
+    daemon_reload: yes
   ignore_errors: yes
 
 # 2.8 User namespace support
-- name:
+- name: Add User namespace support
   file:
     path: "{{ item }}"
     state: touch
+  register: touch_log
+  changed_when: touch_log.diff.before.state != "file"
   with_items:
     - /etc/subuid
     - /etc/subgid
+
 
 # TODO TLS
 # https://docs.docker.com/engine/reference/commandline/dockerd/#linux-configuration-file
@@ -58,13 +72,7 @@
 # 2.14 "live-restore": true
 # 2.18 "userland-proxy": false
 - name: Update docker deamon
-  copy:
+  template:
     owner: root
-    src: files/etc/docker/daemon.json
+    src: etc/docker/daemon.json.j2
     dest: /etc/docker/daemon.json
-
-- name: Restart `docker`
-  systemd:
-    name: docker
-    state: restarted
-    daemon_reload: yes

@@ -1,0 +1,17 @@
+{
+	"disable-legacy-registry": true,
+	{#"default-ulimits": {},#}
+	"dns": [ "8.8.8.8", "8.8.4.4" ],
+	"icc": false,
+	"live-restore": true,
+	"log-level": "info",
+	"storage-driver": "overlay",
+{#
+    "tlscacert": "{{ docker_tls_dir }}/ca.pem",
+    "tlscert": "{{ docker_tls_dir }}/server-cert.pem",
+   	"tlskey": "{{ docker_tls_dir }}/server-key.pem",
+   	"tlsverify": true,
+#}
+	"userland-proxy": false
+	{#"userns-remap": ""#}
+}
