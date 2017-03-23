@@ -1,6 +1,6 @@
 ---
 
-# ansible-playbook 2_servers.yml
+# ansible-playbook playbook.yml
 
 - hosts: webapp
   become: yes
@@ -13,6 +13,6 @@
     - update
     - galaxy.cis
   #  - galaxy.fail2ban
-    - sshd
-    - docker
+    - galaxy.sshd
+    - galaxy.docker
   #  - galaxy.firewall

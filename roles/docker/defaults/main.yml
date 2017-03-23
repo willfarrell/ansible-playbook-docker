@@ -1,8 +1,0 @@
----
-
-docker_version: 1.13.1
-
-docker_tls_host: 127.0.0.1
-docker_tls_dir: /etc/docker/certs.d/regestry
-
-docker_swarm_token:
