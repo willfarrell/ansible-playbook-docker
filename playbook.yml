@@ -9,10 +9,12 @@
       - wfarrell
     ssh_sudo_users:
       - wfarrell
+    docker_users:
+      - wfarrell
   roles:
-    - update
-    - galaxy.cis
-  #  - galaxy.fail2ban
+  #  - update
+  #  - galaxy.cis
     - galaxy.sshd
     - galaxy.docker
+  #  - galaxy.fail2ban
   #  - galaxy.firewall

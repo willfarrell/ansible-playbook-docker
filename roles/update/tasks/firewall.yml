@@ -12,7 +12,7 @@
   systemd:
     name: firewalld
     state: stopped
-  #ignore_errors: yes
+  ignore_errors: yes
 
 - name: Start `iptables`
   systemd:
@@ -28,4 +28,4 @@
     name: firewalld
     enabled: no
     masked: yes
-  #ignore_errors: yes
+  ignore_errors: yes
